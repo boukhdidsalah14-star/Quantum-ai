@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<meta name="theme-color" content="#050907">
+<title>QUANTUM AI</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<style>
+:root{color-scheme:dark;--bg:#050907;--panel:#0b1410;--line:#183426;--green:#00ff78;--muted:#8ca99a;--red:#ff6377}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(ellipse at 50% -20%,#123b27 0,transparent 55%),var(--bg);color:#e8fff0;font-family:Inter,system-ui,sans-serif;min-height:100vh}
+body:before{content:"";position:fixed;inset:0;pointer-events:none;opacity:.14;background-image:linear-gradient(#00ff7810 1px,transparent 1px),linear-gradient(90deg,#00ff7810 1px,transparent 1px);background-size:28px 28px}
+main{position:relative;max-width:720px;margin:auto;padding:22px 16px 40px}
+header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+.logo{width:48px;height:48px;border:1px solid var(--green);border-radius:14px;display:grid;place-items:center;color:var(--green);font-size:24px;box-shadow:0 0 24px #00ff7822}
+h1{font-size:19px;letter-spacing:2px;margin:0;color:var(--green)}
+.sub{font-size:10px;color:var(--muted);letter-spacing:2px;margin-top:5px}
+.status{margin-left:auto;color:var(--green);font-size:11px;border:1px solid #185c36;padding:7px 9px;border-radius:20px}
+h2{font-size:12px;letter-spacing:1.5px;color:var(--muted);font-weight:600}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.panel{background:linear-gradient(145deg,#0d1912,#08100c);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px;min-width:0}
+.metric{font-size:22px;font-weight:700;overflow-wrap:anywhere;margin-top:10px}
+.small{font-size:11px;color:var(--muted);margin-top:6px}
+.green{color:var(--green)}.red{color:var(--red)}
+.chart{height:180px;width:100%;display:block}
+.signal{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.direction{font-size:28px;font-weight:800;color:var(--green)}
+button{font:inherit;cursor:pointer;border:1px solid #23633e;border-radius:12px;background:#0d2518;color:var(--green);padding:14px 10px;font-size:12px;font-weight:700;letter-spacing:.5px}
+button:active{transform:scale(.98)}
+.buttons{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+button.secondary{background:#111b15;border-color:#283a30;color:#e8fff0}
+button.danger{background:#281116;border-color:#65232e;color:#ff8290}
+button:disabled{opacity:.45;cursor:default}
+.notice{font-size:11px;line-height:1.6;color:var(--muted)}
+#feed{display:flex;flex-direction:column;gap:10px}
+.event{display:flex;justify-content:space-between;gap:12px;font-size:12px;padding-bottom:10px;border-bottom:1px solid #14261c}
+footer{text-align:center;color:#607e6d;font-size:10px;letter-spacing:1px;padding-top:14px}
+@media(min-width:560px){main{padding-top:32px}.metric{font-size:28px}}
+
+/* QUANTUM AI premium brand */
+.quantum-brand {
+  width: 100%;
+  box-sizing: border-box;
+  text-align: center;
+  padding: 20px 8px 14px;
+  color: #00ff66;
+  font-family: Inter, system-ui, sans-serif;
+  font-size: clamp(30px, 8vw, 46px);
+  font-weight: 950;
+  letter-spacing: .13em;
+  line-height: 1.15;
+  text-shadow: 0 0 8px rgba(0,255,102,.8),
+               0 0 24px rgba(0,255,102,.35);
+}
+.quantum-brand span {
+  display: block;
+  margin-top: 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .35em;
+  color: #91ffb9;
+  text-shadow: none;
+}
+
+</style>
+</head>
+<body>
+<div class="quantum-brand">QUANTUM AI<span>INTELLIGENT TRADING TERMINAL</span></div>
+<main>
+<header>
+<div class="logo">ϟ</div>
+<div><h1>QUANTUM AI</h1><div class="sub">QUANTITATIVE TERMINAL</div></div>
+<div class="status" id="connection">CONNECTING</div>
+</header>
+
+<div class="grid">
+<section class="panel"><h2>ENGINE</h2><div class="metric green" id="engine">CHECKING</div><div class="small">Market monitoring</div></section>
+<section class="panel"><h2>TRADING MODE</h2><div class="metric" id="mode">OFF</div><div class="small">Execution status</div></section>
+</div>
+
+<section class="panel">
+<div class="signal"><div><h2>MARKET</h2><div class="metric" id="symbol">R_100</div><div class="small">Latest received quote</div></div><div style="text-align:right"><h2>LAST PRICE</h2><div class="metric green" id="price">—</div><div class="small" id="updated">Awaiting data</div></div></div>
+<canvas id="chart" class="chart"></canvas>
+</section>
+
+<section class="panel">
+<h2>LATEST SIGNAL</h2>
+<div class="signal"><div class="direction" id="direction">—</div><div class="small" id="reason" style="text-align:right">No signal received</div></div>
+</section>
+
+<section class="panel">
+<h2>CONTROL CENTER</h2>
+<div class="buttons">
+<button id="openBot">OPEN BOT</button>
+<button class="secondary" id="refresh">REFRESH STATUS</button>
+<button class="secondary" id="demo">ARM DEMO</button>
+<button class="danger" id="disarm">DISARM</button>
+</div>
+<p class="notice">Demo control will work only after a secure backend endpoint is connected. Real-money trading is not enabled by this interface.</p>
+</section>
+
+<section class="panel"><h2>MARKET ACTIVITY</h2><div id="feed"><div class="event"><span>Dashboard initialized</span><span class="green">READY</span></div></div></section>
+<footer>QUANTUM AI · RISK FIRST · NO PROFIT GUARANTEE</footer>
+</main>
+<script>
+const tg=window.Telegram?.WebApp;
+tg?.ready();
+tg?.expand();
+const $=id=>document.getElementById(id);
+let prices=[];
+function draw(){
+ const c=$("chart"),ctx=c.getContext("2d"),w=c.clientWidth,h=c.clientHeight,dpr=window.devicePixelRatio||1;
+ c.width=w*dpr;c.height=h*dpr;ctx.scale(dpr,dpr);ctx.clearRect(0,0,w,h);
+ ctx.strokeStyle="#153423";ctx.lineWidth=1;
+ for(let y=20;y<h;y+=35){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+ if(prices.length<2)return;
+ let lo=Math.min(...prices),hi=Math.max(...prices),range=hi-lo||1;
+ ctx.beginPath();prices.forEach((p,i)=>{let x=i*w/(Math.max(prices.length-1,1)),y=h-12-(p-lo)/range*(h-24);i?ctx.lineTo(x,y):ctx.moveTo(x,y)});
+ ctx.strokeStyle="#00ff78";ctx.lineWidth=2;ctx.shadowColor="#00ff78";ctx.shadowBlur=10;ctx.stroke();ctx.shadowBlur=0;
+}
+function event(label,value){
+ const row=document.createElement("div");row.className="event";
+ const a=document.createElement("span"),b=document.createElement("span");
+ a.textContent=label;b.textContent=value;b.className="green";row.append(a,b);
+ $("feed").prepend(row);while($("feed").children.length>8)$("feed").lastChild.remove();
+}
+function update(data){
+ if(!data||typeof data!=="object")return;
+ if(data.running!==undefined)$("engine").textContent=data.running?"RUNNING":"STOPPED";
+ if(data.trading_mode)$("mode").textContent=data.trading_mode;
+ if(data.symbol)$("symbol").textContent=data.symbol;
+ if(data.last_tick!==undefined&&data.last_tick!==null){
+  const p=Number(data.last_tick);if(Number.isFinite(p)){ $("price").textContent=p.toFixed(2);prices.push(p);prices=prices.slice(-60);draw();$("updated").textContent="Price received";}
+ }
+ if(data.last_signal){$("reason").textContent=data.last_signal;$("direction").textContent=data.last_signal.toUpperCase().includes("PUT")?"PUT":data.last_signal.toUpperCase().includes("CALL")?"CALL":"SIGNAL";}
+ if(data.authenticated!==undefined)$("connection").textContent=data.authenticated?"ACCOUNT LINKED":"MONITORING";
+}
+async function refresh(){
+ if(!tg || !tg.initData){
+   $("connection").textContent="OPEN INSIDE TELEGRAM";
+   return;
+ }
+ $("connection").textContent="CONNECTING...";
+ try {
+   const response = await fetch("/api/state", {
+     method: "GET",
+     headers: {"X-Telegram-Init-Data": tg.initData},
+     cache: "no-store"
+   });
+   if(!response.ok) {
+     $("connection").textContent =
+       response.status === 401 ? "AUTHENTICATION FAILED" : "API UNAVAILABLE";
+     return;
+   }
+   const data = await response.json();
+   if(!data.ok) {
+     $("connection").textContent="API ERROR";
+     return;
+   }
+   $("connection").textContent="LIVE DATA";
+   if(data.running !== undefined)
+     $("engine").textContent=data.running ? "RUNNING" : "STOPPED";
+   if(data.trading_mode)
+     $("mode").textContent=data.trading_mode;
+   if(data.symbol)
+     $("symbol").textContent=data.symbol;
+   if(data.last_tick !== undefined && data.last_tick !== null) {
+     const p=Number(data.last_tick);
+     if(Number.isFinite(p)) {
+       $("price").textContent=p.toFixed(2);
+       if(!prices.length || prices[prices.length-1] !== p) {
+         prices.push(p);
+         prices=prices.slice(-60);
+         draw();
+       }
+       $("updated").textContent="Live tick received";
+     }
+   }
+   if(data.last_signal) {
+     $("reason").textContent=data.last_signal;
+     $("direction").textContent=
+       data.last_signal.toUpperCase().includes("PUT") ? "PUT" :
+       data.last_signal.toUpperCase().includes("CALL") ? "CALL" : "SIGNAL";
+   }
+ } catch(e) {
+   $("connection").textContent="CONNECTION ERROR";
+ }
+}
+$("refresh").addEventListener("click",refresh);
+$("openBot").addEventListener("click",()=>tg?.close());
+$("demo").addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/demo", {
+      method: "POST",
+      headers: {"X-Telegram-Init-Data": window.Telegram?.WebApp?.initData || ""}
+    });
+    const data = await r.json();
+    event("Demo control", data.ok ? data.message : (data.error || "Request failed"));
+    await refresh();
+  } catch (_) { event("Demo control", "Connection failed"); }
+});
+$("disarm").addEventListener("click", async () => {
+  try {
+    const r = await fetch("/api/disarm", {
+      method: "POST",
+      headers: {"X-Telegram-Init-Data": window.Telegram?.WebApp?.initData || ""}
+    });
+    const data = await r.json();
+    event("Disarm control", data.ok ? data.message : (data.error || "Request failed"));
+    await refresh();
+  } catch (_) { event("Disarm control", "Connection failed"); }
+});
+window.addEventListener("resize",draw);
+refresh();
+</script>
+</body>
+</html>

@@ -111,6 +111,7 @@ analyzer_thread = threading.Thread(target=run_market_analyzer, daemon=True)
 analyzer_thread.start()
 
 with app.app_context():
+    db.drop_all()
     db.create_all()
     admin_email = "admin@velox.com"
     admin = User.query.filter_by(email=admin_email).first()
@@ -124,7 +125,7 @@ BASE_STYLE = '''
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
     <style>
-        :root { --bg-deep: #000205; --panel-bg: rgba(2, 6, 12, 0.88); --border-color: rgba(0, 255, 102, 0.35); --neon-green: #00ff66; --neon-green-glow: rgba(0, 255, 102, 0.7); --neon-red: #ff3344; --text-main: #ffffff; --text-muted: #8b949e; }
+        :root { --bg-deep: #000205; --panel-bg: rgba(2, 6, 12, 0.88); --border-color: rgba(0, 255, 102, 0.35); --neon-green: #00ff66; --neon-green-glow: rgba(0, 255, 102, 0.7); --neon-red: #ff3344; --text-main: #ffffff; --text-muted: #8b949e; --gold: #f39c12; }
         * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; -webkit-tap-highlight-color: transparent; }
         html { background-color: var(--bg-deep); color: var(--text-main); width: 100%; min-height: 100vh; overflow-x: hidden; }
         body { background-color: var(--bg-deep); color: var(--text-main); width: 100%; min-height: 100vh; overflow-y: auto; overflow-x: hidden; position: relative; }
@@ -133,7 +134,7 @@ BASE_STYLE = '''
         .header { height: 56px; background: rgba(2, 6, 12, 0.95); backdrop-filter: blur(16px); border-bottom: 1px solid var(--border-color); display: flex; align-items: center; justify-content: space-between; padding: 0 16px; position: sticky; top: 0; z-index: 100; flex-shrink: 0; }
         .brand { display: flex; align-items: center; gap: 10px; }
         .pro-logo { width: 32px; height: 32px; background: linear-gradient(135deg, #07101e 0%, #010408 100%); border-radius: 8px; display: flex; align-items: center; justify-content: center; border: 1.5px solid var(--neon-green); box-shadow: 0 0 12px var(--neon-green-glow); font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 14px; color: var(--neon-green); }
-        .brand-name { font-size: 11px; font-weight: 800; color: var(--neon-green); text-shadow: 0 0 8px var(--neon-green-glow); letter-spacing: 0.5px; }
+        .brand-name { font-size: 12px; font-weight: 800; color: var(--neon-green); text-shadow: 0 0 8px var(--neon-green-glow); letter-spacing: 0.5px; }
         .menu-container { position: relative; }
         .menu-btn { background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: #fff; width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; cursor: pointer; }
         .dropdown-menu { display: none; position: absolute; right: 0; top: 40px; background: #030814; border: 1px solid var(--border-color); border-radius: 10px; width: 150px; box-shadow: 0 10px 30px rgba(0,0,0,0.9); z-index: 999; overflow: hidden; }
@@ -148,6 +149,19 @@ BASE_STYLE = '''
         .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 700; font-size: 13px; cursor: pointer; transition: all 0.2s; text-align: center; display: inline-block; text-decoration: none; font-family: 'JetBrains Mono', monospace; }
         .btn-primary { background: var(--neon-green); color: #000205; font-weight: 800; box-shadow: 0 0 15px var(--neon-green-glow); }
         .flash { padding: 8px; border-radius: 6px; margin-bottom: 10px; font-size: 11px; text-align: center; background: rgba(0, 255, 102, 0.15); border: 1px solid var(--neon-green); color: var(--neon-green); }
+        
+        .showcase-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 14px; overflow: hidden; width: 100%; max-width: 420px; box-shadow: 0 10px 30px rgba(0,0,0,0.8); }
+        .showcase-img { width: 100%; height: 210px; object-fit: cover; display: block; border-bottom: 1px solid var(--border-color); }
+        .showcase-body { padding: 14px; }
+        .showcase-title { font-size: 13px; font-weight: 800; color: var(--neon-green); margin-bottom: 4px; font-family: 'JetBrains Mono', monospace; text-shadow: 0 0 8px var(--neon-green-glow); }
+        .showcase-desc { font-size: 10px; color: var(--text-muted); line-height: 1.4; }
+
+        .info-menu-card { background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 14px; padding: 14px; width: 100%; max-width: 420px; font-family: 'JetBrains Mono', monospace; }
+        .info-menu-section { margin-bottom: 12px; }
+        .info-menu-section:last-child { margin-bottom: 0; }
+        .info-menu-heading { font-size: 11px; font-weight: 800; color: var(--neon-green); border-bottom: 1px solid rgba(0,255,102,0.2); padding-bottom: 4px; margin-bottom: 6px; }
+        .info-menu-link { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: 10px; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.03); text-decoration: none; }
+        .info-menu-link:hover { color: #fff; }
     </style>
 '''
 
@@ -218,7 +232,7 @@ HEADER_TEMPLATE = '''
     <div class="header">
         <div class="brand">
             <div class="pro-logo">V</div>
-            <div class="brand-name">VELOX LABS AI</div>
+            <div class="brand-name">VELOX TRADING LABS</div>
         </div>
         <div class="menu-container">
             <div class="menu-btn" onclick="toggleMenu()">⋮</div>
@@ -272,6 +286,7 @@ INDEX_HTML = BASE_STYLE + BACKGROUND_CANVAS_HTML + '''
                     <div style="width:100%; max-width:420px;" class="flash">{{ message }}</div>
                 {% endfor %}{% endif %}
             {% endwith %}
+
             {% if user_has_sub %}
             <div class="signals-card">
                 <div class="signals-header">
@@ -299,10 +314,62 @@ INDEX_HTML = BASE_STYLE + BACKGROUND_CANVAS_HTML + '''
                     <span class="signals-title" style="color: var(--neon-red);">🔒 SIGNALS LOCKED</span>
                     <span style="font-size: 9px; color: var(--neon-red);">SUBSCRIPTION REQUIRED</span>
                 </div>
-                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Active subscription required to view automated crypto & forex signals generated live by the quantitative engine.</p>
+                <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">Active subscription required to view automated crypto, forex, and gold signals generated live by the quantitative engine.</p>
                 <a href="#gateway-section" class="btn btn-primary" style="background: var(--neon-red); color: #fff; box-shadow: 0 0 15px rgba(255,51,68,0.5);">Choose Plan & Unlock</a>
             </div>
             {% endif %}
+
+            <!-- GREEN LAMBORGHINI SHOWCASE -->
+            <div class="showcase-card">
+                <img src="https://images.unsplash.com/photo-1544829099-b9a0c07fad1a?auto=format&fit=crop&w=800&q=80" alt="Supercar" class="showcase-img">
+                <div class="showcase-body">
+                    <div class="showcase-title">Supercar & Wealth Velocity</div>
+                    <div class="showcase-desc">High-frequency trading fueled by exotic asset management and high-end automotive portfolios.</div>
+                </div>
+            </div>
+
+            <!-- CHART MONITOR SHOWCASE -->
+            <div class="showcase-card">
+                <img src="https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?auto=format&fit=crop&w=800&q=80" alt="Charts" class="showcase-img">
+                <div class="showcase-body">
+                    <div class="showcase-title">Multi-Screen Trading Monitors</div>
+                    <div class="showcase-desc">Live institutional charts tracking Bitcoin, Forex majors, and liquidity imbalances in real-time.</div>
+                </div>
+            </div>
+
+            <!-- GOLD RESERVES SHOWCASE -->
+            <div class="showcase-card">
+                <img src="https://images.unsplash.com/photo-1610375461246-83df859d849d?auto=format&fit=crop&w=800&q=80" alt="Gold Bullion" class="showcase-img">
+                <div class="showcase-body">
+                    <div class="showcase-title">Gold, Silver & Cash Reserves</div>
+                    <div class="showcase-desc">Precious metal bullion holdings and stacked dollar reserves securing algorithmic margin positions.</div>
+                </div>
+            </div>
+
+            <!-- TRADING & MARKETS INFO MENU -->
+            <div class="info-menu-card">
+                <div class="info-menu-section">
+                    <div class="info-menu-heading">TRADING</div>
+                    <a href="#" class="info-menu-link"><span>Open Institutional Account</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>Pricing Models & Spreads</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>Funding & Fast Withdrawals</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>Weekend Crypto & Indices</span><span>›</span></a>
+                </div>
+                <div class="info-menu-section" style="margin-top: 14px;">
+                    <div class="info-menu-heading">MARKETS & TOOLS</div>
+                    <a href="#" class="info-menu-link"><span>Forex & Spot Metals</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>Global Shares & Indices</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>Energy & Crude Oil</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>All-In-One Margin Calculator</span><span>›</span></a>
+                </div>
+                <div class="info-menu-section" style="margin-top: 14px;">
+                    <div class="info-menu-heading">PLATFORMS</div>
+                    <a href="#" class="info-menu-link"><span>Velox WebTerminal Pro</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>MetaTrader 5 Ultra</span><span>›</span></a>
+                    <a href="#" class="info-menu-link"><span>Advanced TradingView Matrix</span><span>›</span></a>
+                </div>
+            </div>
+
             <div id="gateway-section" class="gateway-card">
                 <div style="text-align: center; margin-bottom: 12px;">
                     <h3 style="color: var(--neon-green); font-family: 'JetBrains Mono', monospace; font-size: 13px; text-shadow: 0 0 8px var(--neon-green-glow);">ACCESS GATEWAY</h3>
@@ -317,6 +384,7 @@ INDEX_HTML = BASE_STYLE + BACKGROUND_CANVAS_HTML + '''
                     <a href="/checkout/3 Month" class="select-btn highlight">Select & Pay</a>
                 </div>
             </div>
+
             {% if not current_user.is_authenticated %}
             <div style="width: 100%; max-width: 420px;">
                 <a href="/register" class="btn btn-primary" style="display: block; text-align: center; font-size: 15px; padding: 14px;">Start Here ▼</a>
