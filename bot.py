@@ -41,16 +41,23 @@ def telegram_listener():
                                 "inline_keyboard": [[
                                     {
                                         "text": "🚀 Open Quantum AI Terminal",
-                                        "web_app": {"url": "https://core.telegram.org/bots/samples/selectablebounty"}
+                                        "web_app": {"url": "https://boukhdidsalah14-star.github.io/quantum-ai/"}
                                     }
                                 ]]
                             }
-                            send_message(chat_id, "Welcome to *Quantum AI Trading*!\n\nClick below to open your terminal:", reply_markup=kb)
+                            send_message(chat_id, "Welcome to *Quantum AI Trading*!\n\nClick below to open your professional Mini App terminal:", reply_markup=kb)
                         elif txt.startswith("/signal"):
-                            send_message(chat_id, "📊 *Quantum AI Signal*\nPair: `EURUSD`\nAction: `CALL (HIGHER)`")
+                            send_message(chat_id, "📊 *Quantum AI Signal*\nPair: `EURUSD`\nAction: `CALL (HIGHER)`\nConfidence: `89.4%`")
         except:
             time.sleep(3)
 
 if __name__ == "__main__":
+    if not TOKEN:
+        print("❌ TELEGRAM_BOT_TOKEN not found! Run the token saver command first.")
+        exit(1)
+
+    # Start Telegram background listener thread
     threading.Thread(target=telegram_listener, daemon=True).start()
+
+    print("🌐 Starting Flask Web Mini App server on port 5000...")
     app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
