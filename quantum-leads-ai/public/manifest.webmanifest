@@ -1,0 +1,11 @@
+{
+  "name": "Quantum Leads AI",
+  "short_name": "Quantum Leads",
+  "description": "Private customer acquisition workspace for your businesses.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#080d19",
+  "theme_color": "#080d19",
+  "icons": [{ "src": "/logo.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
