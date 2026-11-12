@@ -1,0 +1,9 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "quantum-leads-ai",
+  "main": "src/worker.js",
+  "compatibility_date": "2026-11-11",
+  "assets": { "directory": "./public", "binding": "ASSETS", "not_found_handling": "single-page-application" },
+  "d1_databases": [{ "binding": "DB", "database_name": "quantum-leads-ai-db", "database_id": "REPLACE_AFTER_CREATING_D1", "migrations_dir": "migrations" }],
+  "ai": { "binding": "AI" }
+}
