@@ -4,7 +4,7 @@ const enc=s=>new TextEncoder().encode(s);
 const b64=b=>btoa(String.fromCharCode(...new Uint8Array(b))).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');
 async function sign(value,secret){const key=await crypto.subtle.importKey('raw',enc(secret),{name:'HMAC',hash:'SHA-256'},false,['sign']);return b64(await crypto.subtle.sign('HMAC',key,enc(value)));}
 async function sessionToken(secret){const payload=b64(enc(JSON.stringify({exp:Date.now()+7*864e5,role:'owner'})));return payload+'.'+await sign(payload,secret)}
-async function authorized(req,env){const raw=(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('qlai_session='))?.slice(12);if(!raw)return false;const [p,s]=raw.split('.');if(!p||!s||s!==await sign(p,env.SESSION_SECRET||''))return false;try{return JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))).exp>Date.now()}catch{return false}}
+async function authorized(req,env){const raw=(req.headers.get('cookie')||'').split(';').map(x=>x.trim()).find(x=>x.startsWith('qlai_session='))?.slice(13);if(!raw)return false;const [p,s]=raw.split('.');if(!p||!s||s!==await sign(p,env.SESSION_SECRET||''))return false;try{return JSON.parse(atob(p.replace(/-/g,'+').replace(/_/g,'/'))).exp>Date.now()}catch{return false}}
 const cookie=(v,max=604800)=>`qlai_session=${v}; Path=/; HttpOnly; Secure; SameSite=Strict; Max-Age=${max}`;
 async function log(env,event,detail=''){await env.DB.prepare('INSERT INTO activity(id,event,detail,created_at) VALUES(?,?,?,?)').bind(crypto.randomUUID(),event,detail,now()).run()}
 export default { async fetch(req,env){const u=new URL(req.url),p=u.pathname,m=req.method;
