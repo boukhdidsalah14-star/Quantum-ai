@@ -1,18 +1,16 @@
 package com.quantumleads.ai
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.activity.ComponentActivity
-import androidx.activity.OnBackPressedCallback
 
-class MainActivity : ComponentActivity() {
+class MainActivity : Activity() {
     private lateinit var webView: WebView
     private val appUrl = "https://quantum-leads-ai.onrender.com/"
 
@@ -54,21 +52,20 @@ class MainActivity : ComponentActivity() {
 
         setContentView(webView)
         if (savedInstanceState == null) webView.loadUrl(appUrl) else webView.restoreState(savedInstanceState)
+    }
 
-        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-            override fun handleOnBackPressed() {
-                if (webView.canGoBack()) webView.goBack() else finish()
-            }
-        })
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        if (::webView.isInitialized && webView.canGoBack()) webView.goBack() else super.onBackPressed()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
-        webView.saveState(outState)
+        if (::webView.isInitialized) webView.saveState(outState)
         super.onSaveInstanceState(outState)
     }
 
     override fun onDestroy() {
-        webView.destroy()
+        if (::webView.isInitialized) webView.destroy()
         super.onDestroy()
     }
 }
