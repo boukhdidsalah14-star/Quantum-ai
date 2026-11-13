@@ -9,6 +9,10 @@ on:
       - '.github/workflows/build-quantum-leads-ai-apk.yml'
   workflow_dispatch:
 
+concurrency:
+  group: quantum-leads-ai-android-apk
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
