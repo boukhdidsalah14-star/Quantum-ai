@@ -13,16 +13,23 @@ const send=(res,status,data,headers={})=>{res.writeHead(status,{'content-type':'
 const readBody=req=>new Promise((resolve,reject)=>{let s='';req.on('data',c=>{s+=c;if(s.length>1e6)reject(Error('Request too large'))});req.on('end',()=>{try{resolve(s?JSON.parse(s):{})}catch{reject(Error('Invalid JSON'))}});req.on('error',reject)});
 async function log(event,detail=''){if(pool)await pool.query('INSERT INTO activity(event,detail) VALUES($1,$2)',[event,detail])}
 async function initDb(){if(!pool)throw Error('DATABASE_URL is not configured');await pool.query(`CREATE TABLE IF NOT EXISTS leads(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),name TEXT NOT NULL,company TEXT DEFAULT '',email TEXT DEFAULT '',source TEXT DEFAULT '',source_url TEXT UNIQUE,status TEXT DEFAULT 'New',score INTEGER DEFAULT 0,intent TEXT DEFAULT '',notes TEXT DEFAULT '',created_at TIMESTAMPTZ DEFAULT NOW(),updated_at TIMESTAMPTZ DEFAULT NOW());CREATE TABLE IF NOT EXISTS campaigns(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),name TEXT NOT NULL,audience TEXT DEFAULT '',message TEXT DEFAULT '',approved BOOLEAN DEFAULT FALSE,created_at TIMESTAMPTZ DEFAULT NOW(),updated_at TIMESTAMPTZ DEFAULT NOW());CREATE TABLE IF NOT EXISTS activity(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),event TEXT NOT NULL,detail TEXT DEFAULT '',created_at TIMESTAMPTZ DEFAULT NOW());CREATE TABLE IF NOT EXISTS tracking_links(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),code TEXT UNIQUE NOT NULL,name TEXT NOT NULL,destination TEXT NOT NULL,clicks INTEGER NOT NULL DEFAULT 0,created_at TIMESTAMPTZ DEFAULT NOW());CREATE TABLE IF NOT EXISTS tracking_events(id UUID PRIMARY KEY DEFAULT gen_random_uuid(),link_id UUID NOT NULL REFERENCES tracking_links(id) ON DELETE CASCADE,created_at TIMESTAMPTZ DEFAULT NOW());CREATE INDEX IF NOT EXISTS leads_created_at_idx ON leads(created_at DESC);CREATE INDEX IF NOT EXISTS leads_status_idx ON leads(status);`);await pool.query("ALTER TABLE leads ADD COLUMN IF NOT EXISTS score INTEGER DEFAULT 0, ADD COLUMN IF NOT EXISTS intent TEXT DEFAULT '', ADD COLUMN IF NOT EXISTS source_url TEXT");await pool.query('CREATE UNIQUE INDEX IF NOT EXISTS leads_source_url_unique ON leads(source_url) WHERE source_url IS NOT NULL')}
-const intentPhrases=['looking for','recommend','recommendation','need a','need an','want to buy','where can i buy','best platform','best app','alternative to','anyone using','who uses','trying to find','searching for','does anyone know','which tool','which bot','which service','suggest a','what do you use','what platform do you use','what bot do you use'];
-const topicWords=['forex trading','forex bot','fx trading','trading bot','trading signals','automated trading','algorithmic trading','crypto trading','trading platform','mt4','metatrader','binary options','ai trading'];
-function scorePost(text){
- const t=String(text||'').toLowerCase();
- const intents=intentPhrases.filter(w=>t.includes(w));
- const topics=topicWords.filter(w=>t.includes(w));
- const negative=/\\b(hiring|job opening|course homework|giveaway|airdrop|free token|scam report|how to build|build my own|make a bot|open source runtime)\\b/i.test(t);
- if(!intents.length||!topics.length||negative)return {score:0,intent:'No clear buyer-seeking evidence',topic:topics.slice(0,5).join(', ')};
- const score=Math.min(100,55+Math.min(25,(intents.length-1)*10)+Math.min(20,(topics.length-1)*5));
- return {score,intent:intents.slice(0,4).join(', '),topic:topics.slice(0,5).join(', ')};
+const topicPattern=/\\b(forex|fx trading|forex bot|trading bot|trading signals|automated trading|algorithmic trading|crypto trading|trading platform|metatrader|mt4|binary options|ai trading)\\b/i;
+const buyerPatterns=[
+ /\\b(can anyone|could anyone|does anyone|anyone)\\s+(recommend|suggest|know)\\b/i,
+ /\\b(any recommendations|recommendations for|suggestions for)\\b/i,
+ /\\b(looking for|searching for|trying to find)\\b.{0,70}\\b(tool|platform|bot|software|signals|service)\\b/i,
+ /\\b(which|what)\\s+(tool|platform|bot|service)\\b.{0,70}\\b(use|recommend|choose|best)\\b/i,
+ /\\b(need|want)\\s+(a|an)\\s+.{0,45}\\b(bot|platform|tool|signals|trading software)\\b/i,
+ /\\b(alternative to|anyone using|what do you use for)\\b/i
+];
+function scorePost(title,text){
+ const t=(String(title||'')+' '+String(text||'')).toLowerCase();
+ const isShowHn=/^\\s*show hn\\s*:/i.test(String(title||''));
+ const isPromo=/\\b(we built|i built|launching|introducing|our product|my product|now available|check out)\\b/i.test(t);
+ const topic=topicPattern.test(t);
+ const intent=buyerPatterns.some(rx=>rx.test(t));
+ if(isShowHn||isPromo||!topic||!intent)return {score:0,intent:'No verified buyer request'};
+ return {score:85,intent:'Explicit request for a trading tool recommendation'};
 }
 async function fetchJson(url){const r=await fetch(url,{headers:{'user-agent':'QuantumLeadsAI/1.0 (public prospect research; contact: owner)'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Source returned '+r.status);return r.json()}
 async function discover(query){
@@ -50,7 +57,7 @@ async function discover(query){
   if(r.rowCount)added++;else duplicates++;
  }
  await log('discovery.completed',`queries=${queries.slice(0,8).join(';')}; added=${added}; duplicates=${duplicates}`);
- return {query:queries.join(' | '),scanned:found.length,added,duplicates,results:found.slice(0,50),sources:['Hacker News public search (5 targeted queries)'],errors,note:'Searches public indexed discussions only. Only posts with both an explicit tool-seeking/recommendation phrase and a relevant trading-tool topic are saved. Every review link opens the original Hacker News discussion. Reddit is not used because its public endpoint is returning 403. Results are research signals, not confirmed buyers. No email addresses, private data or outreach are collected.'}
+ return {query:queries.join(' | '),scanned:found.length,added,duplicates,results:found.slice(0,50),sources:['Hacker News public search (5 targeted queries)'],errors,note:'Searches Hacker News discussions only. Saves only genuine question posts with an explicit request for a trading-tool recommendation and a matching Forex/crypto topic. Product launches and Show HN promotions are excluded. Every review link opens the original discussion. Reddit is not used because its public endpoint is returning 403. Results are research signals, not confirmed buyers. No email addresses, private data or outreach are collected.'}
 }
 async function app(req,res){const u=new URL(req.url,'http://localhost'),p=u.pathname,m=req.method;
  if(p==='/api/health'&&m==='GET'){let db='not_configured';try{if(pool){await pool.query('SELECT 1');db='connected'}}catch{db='error'}return send(res,db==='connected'?200:503,{ok:db==='connected',app:'Quantum Leads AI',runtime:'Render',database:db,discoverySources:['Reddit public search','Hacker News public search']})}
