@@ -17,12 +17,33 @@ const intentPhrases=['looking for','recommend','recommendation','need a','need a
 const topicWords=['forex','fx trading','trading bot','trading signals','automated trading','algorithmic trading','crypto trading','trading platform','mt4','metatrader','deriv','binary options','ai trading'];
 function scorePost(text){const t=text.toLowerCase();let score=20;const intents=intentPhrases.filter(w=>t.includes(w));const topics=topicWords.filter(w=>t.includes(w));score+=Math.min(45,intents.length*18)+Math.min(30,topics.length*10);if(/\b(free|giveaway|airdrop|job|hiring|course homework|scam|scammer)\b/i.test(t))score-=35;if(t.length<45)score-=15;return {score:Math.max(0,Math.min(100,score)),intent:intents.slice(0,4).join(', ')||'Topic match; buying intent not explicit',topic:topics.slice(0,5).join(', ')}}
 async function fetchJson(url){const r=await fetch(url,{headers:{'user-agent':'QuantumLeadsAI/1.0 (public prospect research; contact: owner)'},signal:AbortSignal.timeout(12000)});if(!r.ok)throw Error('Source returned '+r.status);return r.json()}
-async function discover(query){const q=(query||'people looking for AI forex trading tools or trading signals').trim().slice(0,180);const terms=q+' (forex OR trading bot OR trading signals OR crypto trading OR metatrader OR Deriv)';const found=[],errors=[];
- try{const url='https://www.reddit.com/search.json?q='+encodeURIComponent(terms)+'&sort=new&t=month&limit=100';const data=await fetchJson(url);for(const item of data?.data?.children||[]){const p=item.data||{},body=(p.title||'')+' '+(p.selftext||'');const s=scorePost(body);if(s.score<55)continue;found.push({name:p.author?'u/'+p.author:'Reddit member',company:p.subreddit?'r/'+p.subreddit:'Reddit',source:'Reddit public search',source_url:'https://www.reddit.com'+p.permalink,score:s.score,intent:s.intent+' | '+s.topic,notes:(p.title||'').slice(0,500),created_at:p.created_utc?new Date(p.created_utc*1000).toISOString():new Date().toISOString()})}}catch(e){errors.push('Reddit: '+e.message)}
- try{const url='https://hn.algolia.com/api/v1/search_by_date?query='+encodeURIComponent(q)+'&tags=story&hitsPerPage=100';const data=await fetchJson(url);for(const p of data?.hits||[]){const body=(p.title||'')+' '+(p.story_text||'');const s=scorePost(body);if(s.score<65)continue;found.push({name:p.author?'@'+p.author:'Hacker News member',company:'Hacker News',source:'Hacker News public search',source_url:p.url||'https://news.ycombinator.com/item?id='+p.objectID,score:s.score,intent:s.intent+' | '+s.topic,notes:(p.title||'').slice(0,500),created_at:p.created_at||new Date().toISOString()})}}catch(e){errors.push('Hacker News: '+e.message)}
- let added=0,duplicates=0;for(const x of found){const r=await pool.query(`INSERT INTO leads(name,company,email,source,source_url,status,score,intent,notes,created_at,updated_at) VALUES($1,$2,'',$3,$4,$5,$6,$7,$8,$9,NOW()) ON CONFLICT(source_url) DO NOTHING RETURNING id`,[x.name,x.company,x.source,x.source_url,x.score>=70?'Qualified':'New',x.score,x.intent,x.notes,x.created_at]);if(r.rowCount)added++;else duplicates++}
- await log('discovery.completed',`query=${q}; added=${added}; duplicates=${duplicates}`);
- return {query:q,scanned:found.length,added,duplicates,results:found.slice(0,50),sources:['Reddit public search','Hacker News public search'],errors,note:'Public discussion signals only. A matching post is a research lead, not proof that its author will buy. No email addresses or private data are harvested.'}}
+async function discover(query){
+ const defaults=['AI forex trading tools','crypto trading bots','trading signals','automated trading','algorithmic trading'];
+ const custom=String(query||'').trim();
+ const queries=[...defaults,...(custom&&!defaults.includes(custom)?[custom]:[])];
+ const found=[],errors=[],seen=new Set();
+ for(const q of queries.slice(0,8)){
+  try{
+   const url='https://hn.algolia.com/api/v1/search_by_date?query='+encodeURIComponent(q)+'&tags=story&hitsPerPage=100';
+   const data=await fetchJson(url);
+   for(const p of data?.hits||[]){
+    const body=(p.title||'')+' '+(p.story_text||'');
+    const s=scorePost(body);
+    if(s.score<45)continue;
+    const sourceUrl=p.url||'https://news.ycombinator.com/item?id='+p.objectID;
+    if(seen.has(sourceUrl))continue;seen.add(sourceUrl);
+    found.push({name:p.author?'@'+p.author:'Hacker News member',company:'Hacker News',source:'Hacker News public search',source_url:sourceUrl,score:s.score,intent:s.intent+' | '+s.topic,notes:(p.title||'').slice(0,500),created_at:p.created_at||new Date().toISOString()});
+   }
+  }catch(e){errors.push('Hacker News ('+q+'): '+e.message)}
+ }
+ let added=0,duplicates=0;
+ for(const x of found){
+  const r=await pool.query(`INSERT INTO leads(name,company,email,source,source_url,status,score,intent,notes,created_at,updated_at) VALUES($1,$2,'',$3,$4,$5,$6,$7,$8,$9,NOW()) ON CONFLICT(source_url) DO NOTHING RETURNING id`,[x.name,x.company,x.source,x.source_url,x.score>=70?'Qualified':'New',x.score,x.intent,x.notes,x.created_at]);
+  if(r.rowCount)added++;else duplicates++;
+ }
+ await log('discovery.completed',`queries=${queries.slice(0,8).join(';')}; added=${added}; duplicates=${duplicates}`);
+ return {query:queries.join(' | '),scanned:found.length,added,duplicates,results:found.slice(0,50),sources:['Hacker News public search (5 targeted queries)'],errors,note:'Searches public indexed discussions only. Results are research leads, not confirmed buyers. Reddit is not used because its public endpoint is returning 403. No email addresses or private data are harvested.'}
+}
 async function app(req,res){const u=new URL(req.url,'http://localhost'),p=u.pathname,m=req.method;
  if(p==='/api/health'&&m==='GET'){let db='not_configured';try{if(pool){await pool.query('SELECT 1');db='connected'}}catch{db='error'}return send(res,db==='connected'?200:503,{ok:db==='connected',app:'Quantum Leads AI',runtime:'Render',database:db,discoverySources:['Reddit public search','Hacker News public search']})}
  if(p==='/api/internal/daily-discovery'&&m==='POST'){try{const prior=await pool.query("SELECT 1 FROM activity WHERE event='discovery.daily' AND created_at::date=CURRENT_DATE LIMIT 1");if(prior.rowCount)return send(res,200,{ok:true,skipped:true,note:'Daily discovery already ran today.'});const result=await discover('people actively looking for AI forex trading tools, crypto trading platforms, automated trading and trading signals');await log('discovery.daily',`added=${result.added}; duplicates=${result.duplicates}`);return send(res,200,{ok:true,run_at:new Date().toISOString(),...result})}catch(e){console.error('Daily discovery failed',e);return send(res,502,{ok:false,error:e.message})}}
