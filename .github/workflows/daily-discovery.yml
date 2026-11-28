@@ -1,0 +1,22 @@
+name: Daily QUANTUM AI prospect discovery
+
+on:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily public-source research
+        env:
+          DISCOVERY_URL: https://quantum-leads-ai-app.onrender.com/api/internal/daily-discovery
+        run: |
+          curl --fail --silent --show-error --max-time 90 \
+            -X POST "$DISCOVERY_URL" \
+            -H "content-type: application/json" \
+            -d '{}'
