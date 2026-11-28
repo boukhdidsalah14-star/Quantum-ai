@@ -15,3 +15,6 @@
 .source-link{display:inline-block;color:var(--blue);font-size:12px;font-weight:700;margin-top:8px}
 .lead-intent{max-width:240px;white-space:normal}
 @media(max-width:720px){.discover-form{display:grid}.discover-form button{width:100%}.result-list{grid-template-columns:1fr}.result-card>div{align-items:flex-start;flex-direction:column}}
+
+/* Growth tools */
+.content-piece{border:1px solid var(--line);border-radius:12px;padding:13px;margin:10px 0;background:#0b1423}.content-piece pre{white-space:pre-wrap;overflow-wrap:anywhere;color:#c8d8ea;font:12px/1.6 ui-monospace,monospace;margin:10px 0}.content-piece button{padding:7px 12px}.compact-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin:12px 0}.tracking-rows{max-height:480px;overflow:auto}.tracking-rows .campaign-item{overflow-wrap:anywhere}.tracking-rows .source-link{word-break:break-all}
